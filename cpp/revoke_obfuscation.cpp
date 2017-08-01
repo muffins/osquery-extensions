@@ -8,8 +8,8 @@
  *
  */
 
- #include <chrono>
- #include <thread>
+#include <chrono>
+#include <thread>
 
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -25,12 +25,12 @@ using namespace osquery;
 namespace fs = boost::filesystem;
 namespace pt = boost::property_tree;
 
-const std::string kRevoObfuscationDir {"osquery-revoke-obfuscation"};
-const std::string kRevoObfuscationPrefix {"osquery-rvo-"};
-const std::string kRevoObfuscationCmd {"C:\\Users\\Nick\\Desktop\\run-rvo.ps1"};
+const std::string kRevoObfuscationDir{"osquery-revoke-obfuscation"};
+const std::string kRevoObfuscationPrefix{"osquery-rvo-"};
+const std::string kRevoObfuscationCmd{"C:\\Users\\Nick\\Desktop\\run-rvo.ps1"};
 
 class RevokeObfuscationTablePlugin : public TablePlugin {
- private:
+private:
   TableColumns columns() const override {
     return {
         std::make_tuple("script_hash", TEXT_TYPE, ColumnOptions::DEFAULT),
@@ -44,26 +44,28 @@ class RevokeObfuscationTablePlugin : public TablePlugin {
     };
   }
 
-  std::string getLatestRvoResults(const fs::path& rvoPath) {
-    if(!fs::is_directory(rvoPath)) {
+  std::string getLatestRvoResults(const fs::path &rvoPath) {
+    if (!fs::is_directory(rvoPath)) {
       return "";
     }
     std::map<unsigned int, std::string, std::greater<unsigned int>> paths;
-    for(const auto& entry : boost::make_iterator_range(fs::directory_iterator(rvoPath), {})) {
+    for (const auto &entry :
+         boost::make_iterator_range(fs::directory_iterator(rvoPath), {})) {
       auto t = static_cast<unsigned int>(fs::last_write_time(entry));
       paths[t] = entry.path().string();
     }
     return paths.begin()->second;
   }
 
-  QueryData generate(QueryContext& request) override {
+  QueryData generate(QueryContext &request) override {
     QueryData results;
 
     // TODO: Let's have this happen via a CreateProcess call
     auto cmd = "start powershell.exe " + kRevoObfuscationCmd;
-    //system(cmd.c_str());
+    // system(cmd.c_str());
 
-    auto latestPath = getLatestRvoResults(fs::temp_directory_path() / kRevoObfuscationDir);
+    auto latestPath =
+        getLatestRvoResults(fs::temp_directory_path() / kRevoObfuscationDir);
     PlatformFile pFile(latestPath, PF_OPEN_EXISTING | PF_READ);
     if (!pFile.isValid()) {
       VLOG(1) << "Revo Path was not valid: " << latestPath;
@@ -73,7 +75,7 @@ class RevokeObfuscationTablePlugin : public TablePlugin {
     pt::ptree pt;
     pt::read_json(latestPath, pt);
 
-    for (const auto& node : pt) {
+    for (const auto &node : pt) {
       Row r;
       r["script_hash"] = node.second.get<std::string>("Hash");
       r["script_source"] = node.second.get<std::string>("Source");
@@ -91,7 +93,7 @@ class RevokeObfuscationTablePlugin : public TablePlugin {
 
 REGISTER_EXTERNAL(RevokeObfuscationTablePlugin, "table", "revoke_obfuscation");
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   ::Initializer runner(argc, argv, ToolType::EXTENSION);
 
   auto status = startExtension("revoke_obfuscation", "0.0.1");
